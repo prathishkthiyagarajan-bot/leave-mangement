@@ -1,0 +1,451 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leave Management System</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f3f6fb;
+      color: #243047;
+    }
+
+    header {
+      background: #2447a5;
+      color: white;
+      padding: 22px;
+      text-align: center;
+    }
+
+    main {
+      max-width: 1000px;
+      margin: 25px auto;
+      padding: 15px;
+    }
+
+    .card {
+      background: white;
+      padding: 22px;
+      margin-bottom: 22px;
+      border-radius: 12px;
+      box-shadow: 0 3px 12px #0000000d;
+    }
+
+    h2 {
+      color: #2447a5;
+      margin-top: 0;
+    }
+
+    form {
+      display: grid;
+      gap: 13px;
+    }
+
+    label {
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    input, select, textarea, button {
+      width: 100%;
+      padding: 11px;
+      border-radius: 6px;
+      font-size: 15px;
+    }
+
+    input, select, textarea {
+      border: 1px solid #cbd3e1;
+      margin-top: 6px;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 75px;
+    }
+
+    button {
+      border: none;
+      background: #2447a5;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    button:hover {
+      opacity: 0.88;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .actions button {
+      padding: 8px;
+      font-size: 12px;
+    }
+
+    .approve {
+      background: #16834a;
+    }
+
+    .reject {
+      background: #c0392b;
+    }
+
+    .status {
+      font-weight: bold;
+    }
+
+    .Pending { color: #b77900; }
+    .Approved { color: #16834a; }
+    .Rejected { color: #c0392b; }
+
+    .message {
+      margin-top: 12px;
+      font-weight: bold;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 700px;
+    }
+
+    th, td {
+      border-bottom: 1px solid #e5e9f1;
+      padding: 12px;
+      text-align: left;
+    }
+
+    th {
+      background: #edf2ff;
+    }
+
+    .muted {
+      color: #65728a;
+      font-size: 14px;
+    }
+
+    @media (max-width: 600px) {
+      main {
+        padding: 10px;
+      }
+
+      .card {
+        padding: 15px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Leave Management System</h1>
+    <p>Employee Leave Application Portal</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Register Employee</h2>
+
+      <form id="userForm">
+        <label>
+          Employee Name
+          <input id="name" type="text" required
+                 placeholder="Enter employee name">
+        </label>
+
+        <label>
+          Email Address
+          <input id="email" type="email" required
+                 placeholder="employee@example.com">
+        </label>
+
+        <button type="submit">Register Employee</button>
+      </form>
+
+      <p id="userMessage" class="message"></p>
+    </section>
+
+    <section class="card">
+      <h2>Apply for Leave</h2>
+
+      <form id="leaveForm">
+        <label>
+          Select Employee
+          <select id="userId" required>
+            <option value="">Select employee</option>
+          </select>
+        </label>
+
+        <label>
+          Leave Type
+          <select id="leaveType" required>
+            <option value="">Select leave type</option>
+            <option value="Casual">Casual Leave</option>
+            <option value="Sick">Sick Leave</option>
+            <option value="Earned">Earned Leave</option>
+            <option value="Other">Other</option>
+          </select>
+        </label>
+
+        <label>
+          Start Date
+          <input id="startDate" type="date" required>
+        </label>
+
+        <label>
+          End Date
+          <input id="endDate" type="date" required>
+        </label>
+
+        <label>
+          Reason for Leave
+          <textarea id="reason" required
+                    placeholder="Enter reason"></textarea>
+        </label>
+
+        <button type="submit">Submit Leave Request</button>
+      </form>
+
+      <p id="leaveMessage" class="message"></p>
+    </section>
+
+    <section class="card">
+      <h2>Leave Applications</h2>
+      <p class="muted">
+        Demo management controls: approve or reject pending requests.
+      </p>
+
+      <button id="refreshButton" type="button">
+        Refresh Applications
+      </button>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Leave Type</th>
+              <th>Start Date</th>
+              <th>End Date</th>
+              <th>Reason</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="leaveTable">
+            <tr>
+              <td colspan="7">Loading applications...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p id="tableMessage" class="message"></p>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    async function api(url, options = {}) {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...options.headers
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Request failed");
+      }
+
+      return data;
+    }
+
+    function showMessage(id, message, isError = false) {
+      $(id).textContent = message;
+      $(id).style.color = isError ? "#c0392b" : "#16834a";
+    }
+
+    function formatDate(date) {
+      return new Date(date).toLocaleDateString();
+    }
+
+    async function loadUsers() {
+      const users = await api("/api/users");
+      const select = $("userId");
+
+      select.replaceChildren(new Option("Select employee", ""));
+
+      users.forEach(user => {
+        select.add(new Option(
+          `${user.name} (${user.email})`,
+          user._id
+        ));
+      });
+    }
+
+    async function loadLeaves() {
+      const leaves = await api("/api/leaves");
+      const table = $("leaveTable");
+
+      table.replaceChildren();
+
+      if (!leaves.length) {
+        const row = table.insertRow();
+        const cell = row.insertCell();
+        cell.colSpan = 7;
+        cell.textContent = "No leave applications found.";
+        return;
+      }
+
+      leaves.forEach(leave => {
+        const row = table.insertRow();
+
+        const values = [
+          leave.user?.name || "Unknown",
+          leave.leaveType,
+          formatDate(leave.startDate),
+          formatDate(leave.endDate),
+          leave.reason,
+          leave.status
+        ];
+
+        values.forEach((value, index) => {
+          const cell = row.insertCell();
+
+          if (index === 5) {
+            const status = document.createElement("span");
+            status.className = "status " + leave.status;
+            status.textContent = value;
+            cell.appendChild(status);
+          } else {
+            cell.textContent = value;
+          }
+        });
+
+        const actionCell = row.insertCell();
+
+        if (leave.status === "Pending") {
+          const actions = document.createElement("div");
+          actions.className = "actions";
+
+          const approve = document.createElement("button");
+          approve.className = "approve";
+          approve.textContent = "Approve";
+          approve.onclick = () =>
+            updateStatus(leave._id, "Approved");
+
+          const reject = document.createElement("button");
+          reject.className = "reject";
+          reject.textContent = "Reject";
+          reject.onclick = () =>
+            updateStatus(leave._id, "Rejected");
+
+          actions.append(approve, reject);
+          actionCell.appendChild(actions);
+        } else {
+          actionCell.textContent = "No action";
+        }
+      });
+    }
+
+    async function refreshAll() {
+      try {
+        await Promise.all([loadUsers(), loadLeaves()]);
+        showMessage("tableMessage", "Data loaded successfully.");
+      } catch (error) {
+        showMessage("tableMessage", error.message, true);
+      }
+    }
+
+    $("userForm").addEventListener("submit", async event => {
+      event.preventDefault();
+
+      try {
+        const result = await api("/api/users", {
+          method: "POST",
+          body: JSON.stringify({
+            name: $("name").value.trim(),
+            email: $("email").value.trim()
+          })
+        });
+
+        showMessage("userMessage", result.message);
+        $("userForm").reset();
+        await loadUsers();
+      } catch (error) {
+        showMessage("userMessage", error.message, true);
+      }
+    });
+
+    $("leaveForm").addEventListener("submit", async event => {
+      event.preventDefault();
+
+      if ($("endDate").value < $("startDate").value) {
+        showMessage(
+          "leaveMessage",
+          "End date cannot be before start date.",
+          true
+        );
+        return;
+      }
+
+      try {
+        const result = await api("/api/leaves", {
+          method: "POST",
+          body: JSON.stringify({
+            userId: $("userId").value,
+            leaveType: $("leaveType").value,
+            startDate: $("startDate").value,
+            endDate: $("endDate").value,
+            reason: $("reason").value.trim()
+          })
+        });
+
+        showMessage("leaveMessage", result.message);
+        $("leaveForm").reset();
+        await loadLeaves();
+      } catch (error) {
+        showMessage("leaveMessage", error.message, true);
+      }
+    });
+
+    async function updateStatus(id, status) {
+      try {
+        const result = await api(`/api/leaves/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ status })
+        });
+
+        showMessage("tableMessage", result.message);
+        await loadLeaves();
+      } catch (error) {
+        showMessage("tableMessage", error.message, true);
+      }
+    }
+
+    $("refreshButton").addEventListener("click", refreshAll);
+
+    refreshAll();
+  </script>
+</body>
+</html>
